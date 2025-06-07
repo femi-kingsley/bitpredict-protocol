@@ -252,3 +252,59 @@
 (define-read-only (get-contract-balance)
     (stx-get-balance (as-contract tx-sender))
 )
+
+;; Get Platform Configuration
+;; Returns current platform parameters for transparency
+(define-read-only (get-platform-config)
+    {
+        oracle-address: (var-get oracle-address),
+        minimum-stake: (var-get minimum-stake),
+        fee-percentage: (var-get fee-percentage),
+        market-counter: (var-get market-counter),
+    }
+)
+
+;; ADMINISTRATIVE FUNCTIONS - Platform Management
+
+;; Update Oracle Address
+;; Allows owner to change the authorized oracle for price resolution
+(define-public (set-oracle-address (new-address principal))
+    (begin
+        (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-OWNER-ONLY)
+        (asserts! (is-eq new-address new-address) ERR-INVALID-PARAMETER)
+        (ok (var-set oracle-address new-address))
+    )
+)
+
+;; Update Minimum Stake Requirement
+;; Modifies the minimum STX required for predictions
+(define-public (set-minimum-stake (new-minimum uint))
+    (begin
+        (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-OWNER-ONLY)
+        (asserts! (> new-minimum u0) ERR-INVALID-PARAMETER)
+        (ok (var-set minimum-stake new-minimum))
+    )
+)
+
+;; Update Platform Fee Percentage
+;; Adjusts the fee percentage taken from winnings (max 100%)
+(define-public (set-fee-percentage (new-fee uint))
+    (begin
+        (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-OWNER-ONLY)
+        (asserts! (<= new-fee u100) ERR-INVALID-PARAMETER)
+        (ok (var-set fee-percentage new-fee))
+    )
+)
+
+;; Withdraw Accumulated Platform Fees
+;; Enables contract owner to withdraw collected platform fees
+(define-public (withdraw-fees (amount uint))
+    (begin
+        (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-OWNER-ONLY)
+        (asserts! (<= amount (stx-get-balance (as-contract tx-sender)))
+            ERR-INSUFFICIENT-BALANCE
+        )
+        (try! (as-contract (stx-transfer? amount (as-contract tx-sender) CONTRACT-OWNER)))
+        (ok amount)
+    )
+)
